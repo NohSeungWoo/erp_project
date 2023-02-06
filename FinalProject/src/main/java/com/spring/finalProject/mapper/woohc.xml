@@ -1,0 +1,378 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<!-- ==== #29. mapper 기본설정 ==== --> <!-- mybatis를 사용함 -->
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<!-- ==== #29. 루트 엘리먼트 & 네임스페이스 설정(프로젝트 전체내에서 유일해야 한다.) ==== -->
+<mapper namespace="woohc"> <!-- ohhj는 고유해야하는 식별자이므로, hr.xml에도 namespace명을 똑같이하게되면 충돌난다. => 보통 파일명과 일치시킨다. -->
+
+	<!--  === 기안양식 카테고리 얻어오기 ===  -->
+	<select id="getApcategoryList" resultType="com.spring.approval.model.ApcategoryVO">
+		select apcano, apcaname
+		from tbl_apcategory
+		order by apcano
+	</select>
+	
+	<!--  === 부서명, 부서번호 받아오기 ===  -->
+	<select id="getDepartment" resultType="com.spring.finalProject.model.DepartmentVO_KGH">
+		select departno, departmentname
+		from tbl_department
+		order by departno
+	</select>
+
+	
+	<!-- === 결제선에 이용할 사원 리스트 === 부서명, 부서번호 받아오기 ===  -->
+	<resultMap type ="HashMap" id="empDeptMap">
+		<result property="employeeid" 		column="employeeid" 	 javaType="String"/>
+		<result property="name" 			column="name" 			 javaType="String"/>
+		<result property="departno" 		column="departno" 	 	 javaType="String"/>
+		<result property="departmentname"  	column="departmentname"  javaType="String"/>
+		<result property="positionno" 		column="positionno" 	 javaType="String"/>
+		<result property="positionname" 	column="positionname" 	 javaType="String"/>
+	</resultMap>
+	<select id="getEmployeeList" resultMap="empDeptMap" parameterType="HashMap">
+		select employeeid, name, departno, departmentname, positionno, positionname
+		from TBL_EMPLOYEE E
+		join tbl_department D
+		on e.fk_departno = d.departno
+		join tbl_position P
+		on e.fk_positionno = p.positionno
+		where retire = 0
+		<if test='searchWord != "" '>
+			and (lower( departmentname ) like '%'|| lower( #{searchWord} ) || '%' 
+			or lower( name ) like '%'|| lower( #{searchWord} ) || '%'
+			or employeeid like '%'|| #{searchWord} || '%')
+		</if>
+	</select>
+	
+	<!-- 결재문서번호 채번하기 -->
+	<select id="getnewApno" resultType="String">
+		select seq_apno.nextval
+		from dual
+	</select>
+	
+	<!-- 결재문서 insert 하기 -->
+	<insert id="addAP" parameterType="com.spring.approval.model.ApprovalVO">
+		<if test="fileName == null">
+			insert into tbl_approval(apno,fk_employeeid,fk_apcano,subject,content,apprEmp,coopEmp,reciEmp,apdate,apstatus)
+			values(#{apno},#{fk_employeeid},#{fk_apcano},#{subject},#{content},#{apprEmp},#{coopEmp},#{reciEmp},default,default)
+		</if>
+		<if test="fileName != null">
+			insert into tbl_approval(apno,fk_employeeid,fk_apcano,subject,content,apprEmp,coopEmp,reciEmp,apdate,apstatus, fileName, orgFilename, fileSize)
+			values(#{apno},#{fk_employeeid},#{fk_apcano},#{subject},#{content},#{apprEmp},#{coopEmp},#{reciEmp},default,default, #{fileName}, #{orgFilename}, #{fileSize})
+		</if>
+	</insert>
+	
+	<!-- 카테고리에 맞는 문서에 insert 하기 -->
+	<insert id="addAPSortByCategory" parameterType="HashMap">
+		<if test="fk_apcano == 50">
+			insert into tbl_minutes(mino, fk_apcano, fk_apno, midate, purpose)
+			values(seq_mino.nextval, #{fk_apcano}, #{fk_apno}, #{midate}, #{purpose})
+		</if>
+		<if test="fk_apcano == 51">
+			insert into tbl_businessReport(brno, fk_apcano, fk_apno, taskdate, issue)
+			values(seq_brno.nextval, #{fk_apcano}, #{fk_apno}, #{taskdate}, #{issue})
+		</if>
+		<if test="fk_apcano == 52">
+			insert into tbl_draft(drno, fk_apcano, fk_apno)
+			values(seq_drno.nextval, #{fk_apcano}, #{fk_apno})
+		</if>
+		<if test="fk_apcano == 53">
+			insert into tbl_spend(spno, fk_apcano, fk_apno, spdate, amount)
+			values(seq_spno.nextval, #{fk_apcano}, #{fk_apno}, #{spdate}, #{amount})
+		</if>
+	</insert>
+	
+	<!-- 결재차례테이블에 결재자 insert 하기 -->
+	<insert id="addApturn" parameterType="HashMap">
+		insert into tbl_apturn(ynseq, fk_apno, fk_employeeid, yn)
+		values(seq_ynseq.nextval, #{fk_apno}, #{fk_employeeid}, #{yn})
+	</insert>
+	
+	<!-- 페이징처리를 위한 총게시물 수 -->
+	<select id="getTotalCount" parameterType="HashMap" resultType="int">
+		select count(apno)
+		from tbl_approval A
+		<if test='yn != ""'>
+		join
+		(select * 
+		 from tbl_apturn
+		 where yn=#{yn} and fk_employeeid= #{fk_employeeid}) T
+		on A.apno = T.fk_apno
+		</if>
+		where apstatus = #{apstatus}
+		<if test='yn == ""'>
+		and fk_employeeid = #{fk_employeeid}
+		</if>
+		<if test='fk_apcano != ""'>
+		and fk_apcano = #{fk_apcano}
+		</if>
+		<if test='makeFromDate != "" and makeToDate != ""'> 
+		and to_char(apdate,'yyyy-mm-dd') between #{makeFromDate} and #{makeToDate}
+		</if>
+		<if test='searchWord != ""'>
+		and lower( subject ) like '%'|| lower( #{searchWord} ) || '%'
+		</if> 
+	</select>
+	
+	<!-- 페이징처리를 한 기안목록 받아오기 -->
+	<resultMap type ="HashMap" id="approvalMap">
+		<result property="apno" 		  column="apno" 	 	 javaType="String"/>
+		<result property="fk_employeeid"  column="fk_employeeid" javaType="String"/>
+		<result property="subject" 		  column="subject" 	 	 javaType="String"/>
+		<result property="apdate" 		  column="apdate" 	 	 javaType="String"/>
+		<result property="eddate" 		  column="eddate" 		 javaType="String"/>
+		<result property="apstatus" 	  column="apstatus" 	 javaType="String"/>
+		<result property="apcaname" 	  column="apcaname" 	 javaType="String"/>
+		<result property="fileName" 	  column="fileName" 	 javaType="String"/>
+		<result property="preappempid" 	  column="preappempid" 	 javaType="String"/>
+		<result property="name" 		  column="name" 	   	 javaType="String"/>
+		<result property="departmentname" column="departmentname" javaType="String"/>
+		<result property="positionname"   column="positionname"   javaType="String"/>
+	</resultMap>
+	<select id="approvalListSearchPaging" resultMap="approvalMap" parameterType="HashMap">
+		select apno, fk_employeeid, subject, apdate, eddate, apstatus ,apcaname, fileName
+		<if test='apstatus == "0"'>
+			 , preappempid, name, departmentname, positionname
+		</if>	 
+		from 
+		(
+		    select row_number() over(order by apno desc) AS rno,
+		           apno, a.fk_employeeid, subject, to_char(apdate,'yyyy-mm-dd hh24:mi') as apdate, to_char(eddate,'yyyy-mm-dd hh24:mi') as eddate,
+		           a.apstatus ,apcaname, fileName
+		<if test='apstatus == "0"'>           
+		           , t.employeeid as preappempid, name, departmentname, positionname
+		</if>          
+		    from tbl_approval A
+		    join tbl_apcategory C
+		    on a.fk_apcano = c.apcano
+        <if test='apstatus == "0"'>
+		    join
+		    (select employeeid, name, departmentname, positionname, fk_apno
+		    from TBL_EMPLOYEE E
+		    join tbl_department D
+		    on e.fk_departno = d.departno
+		    join tbl_position P
+		    on e.fk_positionno = p.positionno
+		    join
+		        (select * 
+		         from tbl_apturn
+		         where yn=1
+		         ) b
+		         on b.fk_employeeid = e.employeeid
+		    ) T
+		    on a.apno = t.fk_apno
+        </if>
+		    where a.apstatus = #{apstatus}
+		    and a.fk_employeeid = #{fk_employeeid} 
+		    <if test='fk_apcano != ""'>
+			and fk_apcano = #{fk_apcano}
+			</if>
+			<if test='makeFromDate != "" and makeToDate != ""'> 
+			and to_char(apdate,'yyyy-mm-dd') between #{makeFromDate} and #{makeToDate}
+			</if>
+			<if test='searchWord != ""'>
+			and lower( subject ) like '%'|| lower( #{searchWord} ) || '%'
+			</if> 
+			) V
+		where rno between #{startRno} and #{endRno}
+	</select>
+	
+	<!-- 페이징처리를 한 결재할목록 받아오기 -->
+	<select id="receiveDocapproval" resultMap="approvalMap" parameterType="HashMap">
+		select apno, fk_employeeid, fk_apcano, subject, appremp, coopemp, reciemp, apdate, eddate, apstatus ,apcaname, fileName, name, departmentname, positionname
+		from 
+		(
+		    select row_number() over(order by apno desc) AS rno,
+		           apno, a.fk_employeeid, fk_apcano, subject, appremp, coopemp, reciemp, to_char(apdate,'yyyy-mm-dd hh24:mi') as apdate,
+		           to_char(eddate,'yyyy-mm-dd hh24:mi') as eddate,
+		           a.apstatus ,apcaname, fileName, name, departmentname, positionname
+		    from tbl_approval A
+		    join tbl_apcategory C
+		    on a.fk_apcano = c.apcano
+		    join 
+		        (select * 
+		         from tbl_apturn
+		         where yn = #{yn} and fk_employeeid= #{fk_employeeid} ) T 
+		    on a.apno = t.fk_apno
+		    join
+		    TBL_EMPLOYEE E
+		    on E.employeeid = a.fk_employeeid
+		    join tbl_department D
+		    on e.fk_departno = d.departno
+		    join tbl_position P
+		    on e.fk_positionno = p.positionno
+		    where a.apstatus = #{apstatus}  
+		    <if test='fk_apcano != ""'>
+			and fk_apcano = #{fk_apcano}
+			</if>
+			<if test='makeFromDate != "" and makeToDate != ""'> 
+			and to_char(apdate,'yyyy-mm-dd') between #{makeFromDate} and #{makeToDate}
+			</if>
+			<if test='searchWord != ""'>
+			and lower( subject ) like '%'|| lower( #{searchWord} ) || '%'
+			</if> 
+		) V
+		where rno between #{startRno} and #{endRno}
+	</select>
+	
+	<!-- 페이징처리를 위한 협조,수신 총게시물 수 -->
+	<select id="getCooDocTotalCount" parameterType="HashMap" resultType="int">
+		select count(apno)
+		from tbl_approval A
+		where 1 = 1
+		<if test='emptype == "c"'>
+		and apstatus = #{apstatus}
+		and coopemp like '%'|| #{fk_employeeid} || '%'
+		</if>
+		<if test='emptype == "r"'>
+		and reciemp like '%'|| #{fk_employeeid} || '%'
+		</if>
+		<if test='fk_apcano != ""'>
+		and fk_apcano = #{fk_apcano}
+		</if>
+		<if test='makeFromDate != "" and makeToDate != ""'> 
+		and to_char(apdate,'yyyy-mm-dd') between #{makeFromDate} and #{makeToDate}
+		</if>
+		<if test='searchWord != ""'>
+		and lower( subject ) like '%'|| lower( #{searchWord} ) || '%'
+		</if> 
+	</select>
+	
+	<!-- 페이징처리를 한 협조목록 받아오기 -->
+	<select id="cooDocapproval" resultMap="approvalMap" parameterType="HashMap">
+		select apno, fk_employeeid, fk_apcano, subject, appremp, coopemp, reciemp, apdate, eddate, apstatus ,apcaname, fileName, name, departmentname, positionname
+		from 
+		(
+		    select row_number() over(order by apno desc) AS rno,
+            		apno, a.fk_employeeid, fk_apcano, subject, appremp, coopemp, 
+            		reciemp,to_char(apdate,'yyyy-mm-dd hh24:mi') as apdate, to_char(eddate,'yyyy-mm-dd hh24:mi') as eddate, a.apstatus ,apcaname, fileName, name, departmentname, positionname
+		    from tbl_approval A
+		    join tbl_apcategory C
+		    on a.fk_apcano = c.apcano
+		    join
+		    TBL_EMPLOYEE E
+		    on E.employeeid = a.fk_employeeid
+		    join tbl_department D
+		    on e.fk_departno = d.departno
+		    join tbl_position P
+    		on e.fk_positionno = p.positionno
+		    where 1 = 1
+		    <if test='emptype == "c"'>
+		    and a.apstatus = #{apstatus}
+		    and coopemp like '%'|| #{fk_employeeid} || '%'  
+		    </if>
+		    <if test='emptype == "r"'>
+			and reciemp like '%'|| #{fk_employeeid} || '%'
+			</if>
+		    <if test='fk_apcano != ""'>
+			and fk_apcano = #{fk_apcano}
+			</if>
+			<if test='makeFromDate != "" and makeToDate != ""'> 
+			and to_char(apdate,'yyyy-mm-dd') between #{makeFromDate} and #{makeToDate}
+			</if>
+			<if test='searchWord != ""'>
+			and lower( subject ) like '%'|| lower( #{searchWord} ) || '%'
+			</if> 
+		) V
+		where rno between #{startRno} and #{endRno}
+	</select>
+	
+	<!-- 문서상세 조회하기 -->
+	<select id="getDocdetail" resultType="com.spring.approval.model.ApprovalVO" parameterType="HashMap">
+		select apno, fk_employeeid, fk_apcano, subject, content, apprEmp, coopEmp, reciEmp, 
+		to_char(apdate,'yyyy-mm-dd hh24:mi') as apdate,
+        to_char(eddate,'yyyy-mm-dd hh24:mi') as eddate, 
+		apstatus, fileName, orgFilename, fileSize
+		from tbl_approval
+		where apno = #{apno}
+	</select>
+	
+	<!-- 본인이 결재자에 포함되었으며 문서가 진행중이라면 본인의 결재차례인지 확인 -->
+	<select id="isApYN" parameterType="HashMap" resultType="String">
+		select yn
+		from tbl_apturn
+		where fk_employeeid = #{userid}
+		and fk_apno = #{apno}
+	</select>
+	
+	<!-- 직원번호로 직책, 부서 알아오기 -->
+	<select id="getDeptNPos" resultMap="empDeptMap" parameterType="HashMap">
+		select employeeid, name, departno, departmentname, positionno, positionname
+		from TBL_EMPLOYEE E
+		join tbl_department D
+		on e.fk_departno = d.departno
+		join tbl_position P
+		on e.fk_positionno = p.positionno
+		where employeeid = #{employeeid}
+	</select>
+	
+	
+	
+	<resultMap type ="HashMap" id="apcateDetailMap">
+		<result property="dno" 		  column="dno" 	 	 javaType="String"/>
+		<result property="fk_apcano"  column="fk_apcano" javaType="String"/>
+		<result property="fk_apno" 	  column="fk_apno" 	 javaType="String"/>
+		<result property="midate" 	  column="midate" 	 javaType="String"/>
+		<result property="purpose" 	  column="purpose" 	 javaType="String"/>
+		<result property="taskdate"   column="taskdate"  javaType="String"/>
+		<result property="issue" 	  column="issue" 	 javaType="String"/>
+		<result property="spdate" 	  column="spdate" 	 javaType="String"/>
+		<result property="amount" 	  column="amount" 	 javaType="String"/>
+	</resultMap>
+	<select id="cateApdetail" resultMap="apcateDetailMap" parameterType="HashMap">
+		<if test="apcano == 50">
+			select mino as dno, fk_apcano, fk_apno, midate, purpose
+			from tbl_minutes
+			where fk_apcano = #{apcano} and fk_apno = #{apno}
+		</if>
+		<if test="apcano == 51">
+			select brno as dno, fk_apcano, fk_apno, taskdate, issue
+			from tbl_businessReport
+			where fk_apcano = #{apcano} and fk_apno = #{apno}
+		</if>
+		<if test="apcano == 52">
+			select drno as dno, fk_apcano, fk_apno
+			from tbl_draft
+			where fk_apcano = #{apcano} and fk_apno = #{apno}
+		</if>
+		<if test="apcano == 53">
+			select spno as dno, fk_apcano, fk_apno, spdate, amount
+			from tbl_spend
+			where fk_apcano = #{apcano} and fk_apno = #{apno}
+		</if>
+	</select>
+	
+	<!-- 결재의견 테이블에 insert 하기 -->
+	<insert id="addOpnion" parameterType="com.spring.approval.model.OpinionVO">
+		insert into tbl_apopinion(opno, fk_apno, fk_employeeid, opdate, opinion, apstatus)
+		values(seq_opno.nextval, #{fk_apno}, #{fk_employeeid}, default, #{opinion}, #{apstatus})
+	</insert>
+	
+	<!-- 결재차례 테이블 update -->
+	<update id="updateYN" parameterType="HashMap">
+		update tbl_apturn set yn = #{yn}
+		where fk_employeeid = #{fk_employeeid} and fk_apno = #{fk_apno}
+	</update>
+	
+	<!-- 결재테이블 문서 상태 변경 update -->
+	<update id="updateApStatus" parameterType="HashMap">
+		update tbl_approval set apstatus = #{apstatus}, eddate = sysdate
+		where apno = #{fk_apno}
+	</update>
+	
+	<select id="readOpinion" resultType="com.spring.approval.model.OpinionVO" parameterType="HashMap">
+		select opno, fk_apno, d.departmentname || '부 ' || p.positionname || ' ' || e.name as apprEmp, o.fk_employeeid
+	     	, to_char(opdate,'yyyy-mm-dd hh24:mi') as opdate , opinion, apstatus
+		from tbl_apopinion O
+		join tbl_employee E
+		on o.fk_employeeid = e.employeeid
+		join tbl_department D
+		on e.fk_departno = d.departno
+		join tbl_position P
+		on e.fk_positionno = p.positionno
+		where o.fk_apno = ${fk_apno}
+	</select>
+	
+	
+</mapper>

@@ -1,0 +1,407 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<!-- ==== #29. mapper 기본설정 ==== --> <!-- mybatis를 사용함 -->
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<!-- ==== #29. 루트 엘리먼트 & 네임스페이스 설정(프로젝트 전체내에서 유일해야 한다.) ==== -->
+<mapper namespace="Sks"> <!-- ohhj는 고유해야하는 식별자이므로, hr.xml에도 namespace명을 똑같이하게되면 충돌난다. => 보통 파일명과 일치시킨다. -->
+ 	
+	<resultMap type="HashMap" id="WorkCntByWorkMap">
+	<result property="Work_name" 	column="Work_name"  	javaType="String" />
+	<result property="cnt" 				column="cnt"  				javaType="String" />
+	<result property="percentage" 		column="percentage"  		javaType="String" />
+	</resultMap>
+	<select id="WorkCntByWork" resultMap="WorkCntByWorkMap">
+		select nvl(Work_name, '부서없음') AS Work_name
+			 , count(*) AS cnt 
+			 , round(count(*) / (select count(*) from tbl_workemployee) * 100, 2) AS percentage 
+	    from tbl_workemployee  
+	    group by nvl(Work_name, '부서없음')
+	    order by Work_name
+	</select>
+	
+	<insert id="vacationInsert" parameterType="com.spring.finalProject.model.VacationVO_SKS"  >
+		insert into tbl_vacation( seq, name, fk_employeeid,   annual, vacation,  start_date, end_date)
+		values (vacation_Seq.nextval, #{name}, #{fk_employeeid}, #{annual}, #{vacation}, #{start_date}, #{end_date})
+					
+	</insert>
+    
+    <update id="updatedayoff" parameterType="HashMap">
+    
+    	<if test='vacation eq "연차".toString()'>
+    	update TBL_EMPLOYEE set dayoff = dayoff - to_number(#{dayoff})
+    	where employeeid = #{employeeid}
+    	</if>
+    	<if test='vacation eq "반차".toString()'>
+    	update TBL_EMPLOYEE set dayoff = dayoff - to_number(#{dayoff})
+    	where employeeid = #{employeeid}
+    	</if>
+    	<if test='vacation eq "경조사".toString()'>
+    	update TBL_EMPLOYEE set dayoff = dayoff 
+    	where employeeid = #{employeeid}
+    	</if>
+    	<if test='vacation eq "병가".toString()'>
+    	update TBL_EMPLOYEE set dayoff = dayoff 
+    	where employeeid = #{employeeid}
+    	</if>
+    	<if test='vacation eq "공가".toString()'>
+    	update TBL_EMPLOYEE set dayoff = dayoff 
+    	where employeeid = #{employeeid}
+    	</if>
+    	
+    </update>
+    
+	<select id="getLoginMember" parameterType="HashMap" resultType="com.spring.finalProject.model.EmployeeVO_SKS">
+
+		 select employeeid, fk_departno, fk_positionno, name, password, mobile, email, hiredate, retiredate, 
+			 retire, profilename, orgprofilename, filesize, salary, dayoff, admin, address, detailaddress, 
+			 extraaddress, postcode
+     	 from TBL_EMPLOYEE
+     	 where email = #{email} and password = #{password}
+  
+	</select>
+ 
+<!-- 	   
+	  <select id="vacationlistsListSearch" resultType="com.spring.finalProject.model.VacationVO">
+ 	select seq, name, annual, vacation, to_char(start_date, 'yyyy-mm-dd') as start_date, to_char(end_date, 'yyyy-mm-dd') as end_date
+      from tbl_vacation
+      where name = '이순신'
+      order by seq desc
+      
+     </select>
+      -->
+	 <select id="vacationlistListNoSearch" parameterType="HashMap" resultType="com.spring.finalProject.model.VacationVO_SKS">
+ 			select seq, name, annual, vacation, start_date,  end_date
+ 			from
+ 			(
+ 			 select row_number() over(order by seq desc) AS rno
+			, seq , name, annual, vacation
+					, to_char(start_date, 'yyyy-mm-dd') as start_date
+					, to_char(end_date, 'yyyy-mm-dd') as end_date
+			from tbl_vacation
+			where name = '이순신'
+			) V
+			where rno between #{startRno} and #{endRno}	
+	</select>	
+	
+	<select id="vacationlistListSearch" parameterType="HashMap" resultType="com.spring.finalProject.model.VacationVO_SKS">
+			
+ 			select seq, name, annual, vacation, start_date,  end_date
+ 			from
+ 			(
+ 			
+ 			 select row_number() over(order by seq desc) AS rno
+			, seq , name, annual, vacation
+					, to_char(start_date, 'yyyy-mm-dd') as start_date
+					, to_char(end_date, 'yyyy-mm-dd') as end_date
+			from tbl_vacation
+			where name = '이순신3'
+			
+			) V
+			where rno between #{startRno} and #{endRno}
+			
+	</select>
+	
+	<select id="vacationListSearchWithPaging" parameterType="HashMap" resultType="com.spring.finalProject.model.VacationVO_SKS">
+ 		select seq, name, annual, vacation, start_date,  end_date
+      	from 
+      	(
+			select row_number() over(order by seq desc) AS rno
+					, seq
+					, name, annual
+					, vacation
+					, to_char(start_date, 'yyyy-mm-dd') as start_date
+					, to_char(end_date, 'yyyy-mm-dd') as end_date
+			from tbl_vacation
+			
+		) V
+		where rno between #{startRno} and #{endRno}
+		
+	</select> 	
+	
+	 <select id="vacationlistsListSearch" resultType="com.spring.finalProject.model.VacationVO_SKS">
+	select seq, name, annual, vacation, start_date,  end_date
+      	from 
+      	( 
+ 	select row_number() over(order by seq desc) AS rno
+ 		,seq, name, annual, vacation, to_char(start_date, 'yyyy-mm-dd') as start_date, to_char(end_date, 'yyyy-mm-dd') as end_date
+      from tbl_vacation
+      where name = '이순신3'
+      order by seq desc
+      ) V
+		where rno between 1 and 5
+     </select>
+	
+	<select id="vacationlisteListSearch" resultType="com.spring.finalProject.model.VacationVO_SKS">
+ 	select seq, name, annual, vacation, start_date,  end_date
+      	from 
+      	( 
+ 	select row_number() over(order by seq desc) AS rno
+ 		,seq, name, annual, vacation, to_char(start_date, 'yyyy-mm-dd') as start_date, to_char(end_date, 'yyyy-mm-dd') as end_date
+      from tbl_vacation
+      where name = '이순신'
+      order by seq desc
+      ) V
+		where rno between 1 and 5
+      
+     </select>
+     
+     <select id="vacationlistesListSearch" resultType="com.spring.finalProject.model.VacationVO_SKS">
+ 	select seq, name, annual, vacation, to_char(start_date, 'yyyy-mm-dd') as start_date, to_char(end_date, 'yyyy-mm-dd') as end_date
+      from tbl_vacation
+      order by seq desc
+      
+     </select>
+	<select id="getvacationViewNocount" parameterType="HashMap" resultType="com.spring.finalProject.model.VacationVO_SKS">
+	  select seq, name, annual, vacation, start_date, end_date          
+      from
+      (
+          select seq, name, annual, vacation, to_char(start_date, 'yyyy-mm-dd') as start_date, to_char(end_date, 'yyyy-mm-dd') as end_date   
+          from tbl_vacation
+      ) V
+      where seq = #{seq}
+	</select>
+ 	
+	<update id="vacationedit" parameterType="com.spring.finalProject.model.VacationVO_SKS">
+		update tbl_vacation set annual = #{annual}
+                     , vacation = #{vacation}
+                     , start_date = #{start_date}
+                     , end_date = #{end_date}
+      	where seq = #{seq} 
+	</update>
+	
+  	
+	<delete id="vacationdel" parameterType="HashMap">
+		delete from tbl_vacation
+		where seq = #{seq} and name =#{name}
+	</delete>
+	
+   <select id="getTotalCount" parameterType="HashMap" resultType="int">
+      select count(*)
+      from tbl_vacation
+   </select>
+   
+
+	
+	 <select id="worklistSearch" resultType="com.spring.finalProject.model.WorkemployeeVO_SKS">
+	 select seq, name , work_day, work_time, todaycount
+   	 from
+   	 ( 
+	  select row_number() over(order by seq desc) AS rno
+	  ,seq,name,  to_char(work_day, 'yyyy-mm-dd') as work_day, work_time, todaycount
+      from tbl_workemployee
+      
+     ) V
+     where rno #{startRno} and #{endRno} 
+     </select> 
+     
+      <select id="worklistSearchs" resultType="com.spring.finalProject.model.WorkemployeeVO_SKS">
+	   select seq,name , work_day, work_time, todaycount
+   	 from
+   	 ( 
+	  select row_number() over(order by seq desc) AS rno
+	  ,seq,name,  to_char(work_day, 'yyyy-mm-dd') as work_day, work_time, todaycount
+      from tbl_workemployee
+      where name = '이순신'
+     ) V
+     where rno between #{startRno} and #{endRno} 		
+	</select>
+     
+      <select id="worklistnoSearchs" resultType="com.spring.finalProject.model.WorkemployeeVO_SKS">
+	    select seq,name , work_day, work_time, todaycount
+   	 from
+   	 ( 
+	  select row_number() over(order by seq desc) AS rno
+	  ,seq,name,  to_char(work_day, 'yyyy-mm-dd') as work_day, work_time, todaycount
+      from tbl_workemployee
+      where name = '이순신3'
+     ) V
+     where rno between #{startRno} and #{endRno} 		
+	</select>		
+	
+	 <select id="worklistsSearch" resultType="com.spring.finalProject.model.WorkemployeeVO_SKS">
+	 select seq , name , work_day, work_time, todaycount
+   	 from
+   	 ( 
+	  select row_number() over(order by seq desc) AS rno
+	  ,seq,name,  to_char(work_day, 'yyyy-mm-dd') as work_day, work_time, todaycount
+      from tbl_workemployee
+      where name = '이순신'
+     ) V
+     where rno between 1 and 5
+     </select>	
+      <select id="worklistseSearch" resultType="com.spring.finalProject.model.WorkemployeeVO_SKS">
+	 select seq, name , work_day, work_time, todaycount
+   	 from
+   	 ( 
+	  select row_number() over(order by seq desc) AS rno
+	  ,seq,name,  to_char(work_day, 'yyyy-mm-dd') as work_day, work_time, todaycount
+      from tbl_workemployee
+      where name = '이순신'
+     ) V
+     where rno between 1 and 5
+	</select>	
+	<select id="worklistsesSearch" resultType="com.spring.finalProject.model.WorkemployeeVO_SKS">
+	 select seq,name , work_day, work_time, todaycount
+   	 from
+   	 ( 
+	  select row_number() over(order by seq desc) AS rno
+	  ,seq,name,  to_char(work_day, 'yyyy-mm-dd') as work_day, work_time, todaycount
+      from tbl_workemployee
+     ) V
+     where rno between 1 and 5
+	</select>	
+	
+   	
+   	<insert id="commutegtw" parameterType="com.spring.finalProject.model.CommuteVO_SKS">
+			
+		insert into tbl_commute( seq, name ,commute_day,  commute_status, commute_gtw ,commute_ok)
+		values (commute_Seq.nextval,  #{name}, default,  '출근', default,default)	
+		
+	</insert>
+	
+	<insert id="commuteow" parameterType="com.spring.finalProject.model.CommuteVO_SKS">
+			insert into tbl_commute( seq, name, commute_day, commute_status, commute_gtw,commute_ok)
+			values (commute_Seq.nextval, #{name},default,  '퇴근', default,default)	
+	</insert>
+   
+  	
+	<select id="CommutelistListSearchs" resultType="com.spring.finalProject.model.CommuteVO_SKS">
+	  select seq, name, commute_day, comute_time, commute_status, commute_gtw,commute_ok
+      	from 
+      	(
+			select  row_number() over(order by seq desc) AS rno
+					,seq, name, to_char(commute_day, 'yyyy-mm-dd') as commute_day, comute_time, commute_status, to_char(commute_gtw, 'hh:mi:ss') as commute_gtw,commute_ok
+			from tbl_commute
+			where name = '이순신3'
+		) V
+		where rno between 1 and 5
+	</select>
+	
+		<select id="CommutelistListewSearchs" resultType="com.spring.finalProject.model.CommuteVO_SKS">
+	  select seq, name, commute_day, comute_time, commute_status, commute_gtw,commute_ok
+      	from 
+      	(
+			select  row_number() over(order by seq desc) AS rno
+					,seq, name, to_char(commute_day, 'yyyy-mm-dd') as commute_day, comute_time, commute_status, to_char(commute_gtw, 'hh:mi:ss') as commute_gtw,commute_ok
+			from tbl_commute
+			where name = '이순신'
+		) V
+		where rno between 1 and 5
+		
+	</select>
+	<select id="CommutelistListsewSearchs" resultType="com.spring.finalProject.model.CommuteVO_SKS">
+	  select seq, name, commute_day, comute_time, commute_status, commute_gtw,commute_ok
+      	from 
+      	(
+			select  row_number() over(order by seq desc) AS rno
+					,seq, name, to_char(commute_day, 'yyyy-mm-dd') as commute_day, comute_time, commute_status, to_char(commute_gtw, 'hh:mi:ss') as commute_gtw,commute_ok
+			from tbl_commute
+		) V
+		where rno between 1 and 5
+	</select>
+<!--
+	<select id="CommutelistListSearch" resultType="com.spring.finalProject.model.CommuteVO">
+	  select  to_char(commute_day, 'yyyy-mm-dd') as commute_day, comute_time, commute_status, to_char(commute_gtw, 'hh:mi:ss') as commute_gtw,commute_ok
+      from tbl_commute
+      order by seq asc 		
+	</select>
+-->
+	<select id="CommuteListSearchWithPaging" parameterType="HashMap" resultType="com.spring.finalProject.model.CommuteVO_SKS">
+		
+		select seq, name, commute_day, comute_time, commute_status, commute_gtw,commute_ok
+      	from 
+      	(
+			select  row_number() over(order by seq desc) AS rno
+					,seq, name, to_char(commute_day, 'yyyy-mm-dd') as commute_day, comute_time, commute_status, to_char(commute_gtw, 'hh:mi:ss') as commute_gtw,commute_ok
+			from tbl_commute
+			where name = '이순신'
+		) V
+		where rno between #{startRno} and #{endRno}
+	</select> 	
+	
+	<select id="CommutelistListNoSearch" parameterType="HashMap" resultType="com.spring.finalProject.model.CommuteVO_SKS">
+		
+		select seq, name, commute_day, comute_time, commute_status, commute_gtw,commute_ok
+      	from 
+      	(
+			select  row_number() over(order by seq desc) AS rno
+					,seq, name, to_char(commute_day, 'yyyy-mm-dd') as commute_day, comute_time, commute_status, to_char(commute_gtw, 'hh:mi:ss') as commute_gtw,commute_ok
+			from tbl_commute
+			where name = '이순신3'
+		) V
+		where rno between #{startRno} and #{endRno}
+	</select>
+	
+		<select id="CommutelistLisstNoSearch" parameterType="HashMap" resultType="com.spring.finalProject.model.CommuteVO_SKS">
+		
+		select seq, name, commute_day, comute_time, commute_status, commute_gtw,commute_ok
+      	from 
+      	(
+			select  row_number() over(order by seq desc) AS rno
+					,seq, name, to_char(commute_day, 'yyyy-mm-dd') as commute_day, comute_time, commute_status, to_char(commute_gtw, 'hh:mi:ss') as commute_gtw,commute_ok
+			from tbl_commute
+			
+		) V
+		where rno between #{startRno} and #{endRno}
+	</select>
+	
+	<select id="getTotalCountS" parameterType="HashMap" resultType="int">
+      select count(*)
+      from tbl_commute
+   </select>
+	<select id="getworkTotalCount" parameterType="HashMap" resultType="int">
+      select count(*)
+      from tbl_workemployee
+   </select>
+   
+   	<insert id="workEnd" parameterType="com.spring.finalProject.model.WorkemployeeVO_SKS">
+			insert into tbl_workemployee( seq, name, work_day, work_time, todaycount)
+			values (wmp_Seq.nextval,#{name}, #{work_day}, #{work_time}, #{todaycount})
+    </insert>
+    
+ 
+
+	 <select id="EmployeeworklistSearchWithPaging" parameterType="HashMap" resultType="com.spring.finalProject.model.WorkemployeeVO_SKS">
+		
+		select seq, name, work_day, work_time, todaycount
+      	from 
+      	(
+			select row_number() over(order by work_day desc) AS rno
+					,seq,  name,  to_char(work_day, 'yyyy-mm-dd') as work_day, work_time, todaycount
+			from tbl_workemployee
+		) V
+		where rno between #{startRno} and #{endRno}
+	</select> 
+	
+	<select id="getCommuteViewNocount" parameterType="HashMap" resultType="com.spring.finalProject.model.CommuteVO_SKS">
+	  select seq, name, commute_day,  commute_status, commute_gtw,commute_ok          
+      from
+      (
+          select seq, name, to_char(commute_day, 'yyyy-mm-dd') as commute_day,  commute_status, to_char(commute_gtw, 'hh:mi:ss') as commute_gtw,commute_ok
+          from tbl_commute
+      ) V
+      where seq = #{seq}
+	</select>		
+	
+	<update id="commuteedit" parameterType="com.spring.finalProject.model.CommuteVO_SKS">
+		update tbl_commute set commute_status = #{commute_status}, commute_ok = #{commute_ok}
+      	where seq = #{seq} 
+	</update>
+	
+	<select id="getworkviewNocount" parameterType="HashMap" resultType="com.spring.finalProject.model.WorkemployeeVO_SKS">
+	  select seq, name, work_day, work_time, todaycount      
+      from
+      (
+          select seq,  name,  to_char(work_day, 'yyyy-mm-dd') as work_day, work_time, todaycount
+          from tbl_workemployee
+      ) V
+      where seq = #{seq}
+	</select>
+	
+	<update id="workeditEnd" parameterType="com.spring.finalProject.model.WorkemployeeVO_SKS">
+		update tbl_workemployee set work_time = #{work_time}, todaycount = #{todaycount}
+      	where seq = #{seq} 
+	</update>
+   	
+</mapper>

@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<!-- ==== #29. mapper 기본설정 ==== --> <!-- mybatis를 사용함 -->
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<!-- ==== #29. 루트 엘리먼트 & 네임스페이스 설정(프로젝트 전체내에서 유일해야 한다.) ==== -->
+    <mapper namespace = "nohsw">
+    	
+    	<select id="schedule" parameterType = "com.spring.finalProject.model.ScheduleVO_NSW" resultType="com.spring.finalProject.model.ScheduleVO_NSW">
+    		SELECT
+    			seq,subject,startDate,endDate,memo,fk_employeeID,fk_departNo
+    		FROM
+    			tbl_schedule
+    		WHERE
+    			fk_employeeID = #{fk_employeeID}
+    		ORDER BY
+    			startDate
+    		DESC
+    	</select>
+    	<select id="getSchedule" parameterType = "com.spring.finalProject.model.ScheduleVO_NSW" resultType="com.spring.finalProject.model.ScheduleVO_NSW">
+    		SELECT
+    			seq,subject,startDate,endDate,memo,fk_employeeID,fk_departNo
+    		FROM
+    			tbl_schedule
+    		WHERE
+    			seq = #{seq}
+    	</select>
+    	    
+    	
+    	<insert id="addSchedule" parameterType = "com.spring.finalProject.model.ScheduleVO_NSW">
+	    	INSERT INTO
+	    		tbl_schedule(seq,fk_departNo,fk_employeeID,subject,startDate,endDate,memo)
+	    	VALUES
+	    		(scheduleSeq.nextval,#{fk_departNo},#{fk_employeeID},#{subject},#{startDate},#{endDate},#{memo})
+    	</insert>
+    </mapper>
